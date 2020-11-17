@@ -28,8 +28,7 @@ public:
     virtual void execute() = 0;
     virtual const int getPriority() const = 0;
     void disableOrder();
-    virtual Player* getPlayer(); //added virtual
-    virtual void PrintMsg() const; //added
+    Player* getPlayer();
     Territory* getTargetTerritory();
 
     friend ostream& operator<<(std::ostream& out, const Order& toOutput);
@@ -39,7 +38,7 @@ public:
 // Deploy armies to one of player's territories
 class Deploy : public Order {
 public:
-    static const int orderPriority = 3;
+    static const int orderPriority = 5;
     Deploy();
     Deploy(Player* player, Territory* territory, int requestedNumberOfArmies);
     Deploy(const Deploy& toCopy);
@@ -49,7 +48,6 @@ public:
     bool validate();
     void execute();
     const int getPriority() const;
-    void PrintMsg() const; //added
     friend ostream& operator<<(std::ostream& out, const Deploy& toOutput);
 
 private:
@@ -61,7 +59,7 @@ private:
 // Advance armies from source to target territories, attacking if needed
 class Advance : public Order {
 public:
-    static const int orderPriority = 0;
+    static const int orderPriority = 1;
     Advance();
     Advance(Player* player, int advanceArmies, Player* targetPlayer, Territory* sourceTerritory,
         Territory* targetTerritory);
@@ -71,7 +69,6 @@ public:
      Advance& operator=(const Advance& rightSide);
     virtual bool validate();
     virtual void execute();
-    void PrintMsg() const; //added
     friend std::ostream& operator<<(std::ostream& out, const Advance& toOutput);
     const int getPriority() const;
 
@@ -94,7 +91,6 @@ public:
 
     virtual bool validate();
     virtual void execute();
-    void PrintMsg() const; //added
     const int getPriority() const;
     friend std::ostream& operator<<(std::ostream& out, const Bomb& toOutput);
 
@@ -105,48 +101,45 @@ private:
 // Triple armies on one of player's territories, making it neutral
 class Blockade : public Order {
 public:
-    static const int orderPriority = 1;
+    static const int orderPriority = 3;
     Blockade();
     Blockade(Player* player, Territory* targetTerritory);
     Blockade(const Blockade& toCopy);
     ~Blockade();
     Blockade& operator=(const Blockade& rightSide);
     const int getPriority() const;
-    void PrintMsg() const; //added
     friend std::ostream& operator<<(std::ostream& out, const Blockade& toOutput);
 
     virtual bool validate();
     virtual void execute();
 
 private:
-    //Player* targetPlayer;
+   
 };
 
-//// Negotiate peace for a turn between player and opponent
-//class Negotiate : public Order {
-//public:
-//    static const int orderPriority = 3;
-//    Negotiate();
-//    Negotiate(Player* player, Player* opponent);
-//    Negotiate(const Negotiate& toCopy);
-//    ~Negotiate();
-//    Negotiate& operator=(const Negotiate& rightSide);
-//
-//    friend std::ostream& operator<<(std::ostream& out, const Negotiate& toOutput);
-//
-//    virtual bool validate();
-//    virtual void execute();
-//    void PrintMsg() const; //added
-//
-//private:
-//    Player* opponent;
-//    virtual std::ostream& doPrint(std::ostream& out) const;
-//};
-//
-// Airliftr tells a certain number of armies taken from a source territory to be moved to a target territory,
-class Airlift : public Order {
+// Negotiate peace for a turn between player and opponent
+class Negotiate : public Order {
 public:
     static const int orderPriority = 2;
+    Negotiate();
+    Negotiate(Player* player,Player* targetPlayer, Territory* targetTerritory);
+    Negotiate(const Negotiate& toCopy);
+    ~Negotiate();
+    Negotiate& operator=(const Negotiate& rightSide);
+    const int getPriority() const;
+    friend std::ostream& operator<<(std::ostream& out, const Negotiate& toOutput);
+
+    virtual bool validate();
+    virtual void execute();
+
+private:
+    Player* targetPlayer;
+};
+
+//Airliftr tells a certain number of armies taken from a source territory to be moved to a target territory,
+class Airlift : public Order {
+public:
+    static const int orderPriority = 4;
     Airlift();
     Airlift(Player* player, int advanceArmies, Player* targetPlayer, Territory* sourceTerritory,
         Territory* targetTerritory);
@@ -157,7 +150,6 @@ public:
     virtual bool validate();
     virtual void execute();
     const int getPriority() const;
-    void PrintMsg() const; //added
     friend std::ostream& operator<<(std::ostream& out, const Airlift& toOutput);
 
 private:

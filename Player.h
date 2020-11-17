@@ -14,7 +14,8 @@ public:
 	Hand* cards;
 	OrdersList* orders;
 	bool conquer;
-	int currentPhase; // 0: initialization value, 1: startup, 2: reinforcement, 3: issue order, 4: execute
+	bool IfNegotiate;
+	int toAdvanceTime;
 
 	// constructors and destructors
 	Player();
@@ -31,8 +32,11 @@ public:
 	void addTerr(Territory* newTerr);		//add new terr to the list
 	// check if player has a specific territory by ID
 	bool hasTerritory(int territoryID);
+	void resetToAdvanceTime();
 
-	vector<Territory*> toDefend();
+
+
+	vector<Territory*> toDefend(Map* map);
 	vector<Territory*> toAttack(Map* map);
 	// creates an order and put on player's ordersList
 	// will return true if an order is successfully created, return false if no more orders are being issued

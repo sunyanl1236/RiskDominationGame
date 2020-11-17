@@ -1,5 +1,5 @@
 #include "GameEngine.h"
-#include "GameObservers.h"
+
 #include <random>
 #include <iostream>
 #include <queue>
@@ -13,8 +13,7 @@ GameEngine::GameEngine()
     numOfPlayers = 0;
     observerFlag = false;
     deck = new Deck();
-    phaseObserver = nullptr;
-    statisticObserver = nullptr;
+    deck->initialize();
 }
 
 // argumented constructor
@@ -24,8 +23,6 @@ GameEngine::GameEngine(Map &map, int players, bool observerSwich, Deck* _deck)
     numOfPlayers = players;
     this->observerFlag = observerSwich;
     deck = _deck;
-    phaseObserver = nullptr;
-    statisticObserver = nullptr;
 }
 // copy constructor
 GameEngine::GameEngine(const GameEngine& gameEngine)
@@ -41,8 +38,6 @@ GameEngine::GameEngine(const GameEngine& gameEngine)
         Player* temp_player = new Player(*pl.at(i));    // rely on the Player's copy constructor
         pl.push_back(temp_player);
     }
-    phaseObserver = new PhaseObserver(*gameEngine.phaseObserver);
-    statisticObserver = new StatisticObserver(*gameEngine.statisticObserver);
 }
 
 GameEngine::~GameEngine()
@@ -118,36 +113,30 @@ void GameEngine::shufflePlayers()
 
 void GameEngine::printPlayerSequence()
 {
-    
-    string playerOrder = "";
-    //cout << "The player is now playing in the following order:" << endl;
+    cout << "The player is now playing in the following order:" << endl;
     for(int i = 0; i < numOfPlayers; i++){
-        playerOrder = playerOrder.append(" Player " + to_string(pl[i]->name));
-        //cout << pl[i]->name << " ";
+        cout << pl[i]->name << " ";
     }
-    notify("startup", NULL, NULL, playerOrder);
-    //cout << endl << endl;
+    cout << endl << endl;
 }
 
 void GameEngine::printPlayerArmy()
 {
-    //cout << "The players have the following army in startup phase: " << endl;
+    cout << "The players have the following army in startup phase: " << endl;
     for(int i = 0; i < numOfPlayers; ++i){
-        pl.at(i)->currentPhase = 1;
-        notify("startup", pl[i], NULL, "");
-        //cout << "[" << pl[i]->name << "] has army: " << pl[i]->armyPool << endl;
+        cout << "[" << pl[i]->name << "] has army: " << pl[i]->armyPool << endl;
     }
-    //cout << endl;
+    cout << endl;
 }
 
-//void GameEngine::printPlayerTerritory()
-//{
-//    for (int i = 0; i < numOfPlayers; i++) {
-//        cout << "[" << pl.at(i)->name << "] owns the following territories:" << endl;
-//        pl[i]->printTerrOwn();
-//    }
-//    cout << endl;
-//}
+void GameEngine::printPlayerTerritory()
+{
+    for (int i = 0; i < numOfPlayers; i++) {
+        cout << "[" << pl.at(i)->name << "] owns the following territories:" << endl;
+        pl[i]->printTerrOwn();
+    }
+    cout << endl;
+}
 
 void GameEngine::setObserverSwitch()
 {
@@ -159,8 +148,6 @@ void GameEngine::setObserverSwitch()
     if(obs == "YES" || obs == "Y" || obs=="1"){
         cout << "need observer" << endl;
         observerFlag = true;
-        phaseObserver = new PhaseObserver(this);
-        statisticObserver = new StatisticObserver(this);
     }
     else{
         cout<< "no need observer" << endl;
@@ -171,25 +158,38 @@ void GameEngine::setObserverSwitch()
 
 bool GameEngine::gameCheck()
 {
-    //loop for all players 
+    vector<int> loserName;
+    //loop for all players to identify any losers
     for (int i = 0; i < numOfPlayers; ++i)
     {
-
-        //player will remove from game if owns zero terr
         if (pl.at(i)->getTerrNumber() == 0)
         {
-            delete pl.at(i);
-            pl.at(i) = nullptr;
-            pl.erase(pl.begin() + i);
-            numOfPlayers--;
-            i--;
-            continue;
+            loserName.push_back(pl.at(i)->name);
         }
-        //the players owns all the territories in the map win
-        else if (pl.at(i)->getTerrNumber() == m->getNumOfTrritories() && numOfPlayers == 1)
+    } 
+
+    // delete all losers
+    for (unsigned int i = 0; i < loserName.size(); ++i)
+    {
+        for (unsigned int j = 0; j < pl.size(); ++j)
         {
-            return true;
+            if (pl.at(j)->name == loserName.at(i))
+            {
+                delete pl.at(j);
+                pl.at(j) = nullptr;
+                pl.erase(pl.begin() + j);
+                numOfPlayers--;
+                break;
+            }
         }
+    }
+
+    //the players owns all the territories in the map win
+    //no one won the game the neutral plater own all terr
+    if (pl.at(0)->getTerrNumber() == m->getNumOfTrritories()
+        && pl.size() == 1)
+    {
+        return true;
     }
     return false;
 }
@@ -199,11 +199,11 @@ void GameEngine::issueOrdersPhase()
     // call the issueOrder() on each player until they have no order to issue anymore
     for (unsigned int i = 0; i < pl.size(); ++i)
     {
-        pl.at(i)->currentPhase = 3;
         while (pl.at(i)->issueOrder(m, deck, pl)) {}
-        //phase observer
-        //get orderLists
-        notify("issueorder", pl.at(i), NULL, "");
+
+        // after this player is done issuing orders, reset toAdvanceTime
+        pl.at(i)->resetToAdvanceTime();
+       
     }
 }
 
@@ -213,7 +213,7 @@ void GameEngine::executeOrdersPhase()
     priority_queue<Order*, vector<Order*>, OrderByPriority> allOrders;
     for (unsigned int i = 0; i < pl.size(); ++i)
     {
-        pl.at(i)->currentPhase = 4;
+
         // add all orders from this player to allOrders queue
         while (pl.at(i)->orders->getOrderList().size() > 0)
         {
@@ -231,10 +231,29 @@ void GameEngine::executeOrdersPhase()
         Order* o = allOrders.top();
         o->execute();
         allOrders.pop();
-        notify("execute", NULL, o, ""); //phase observer
         delete o;
         o = nullptr;
         //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    // when finish executing all orders, check if any player needs to draw cards
+    for (int i = 0; i < numOfPlayers; i++)
+    {
+        // check if conquer happend in this round 
+        if (pl.at(i)->conquer)
+        {
+            // draw a card from the deck
+            Card* c = deck->draw();
+            // if player cannot have more cards
+            if (!pl.at(i)->cards->add(c))
+            {
+                // put the card back into the deck
+                deck->putBack(c);
+            }
+            pl.at(i)->conquer = false;
+        }
+        // reset IfNegotiate to false
+        pl.at(i)->IfNegotiate = false;
     }
   
 }
@@ -296,6 +315,10 @@ void GameEngine::startupPhase()
             cout<<"Number of player is invalidation!!!"<<endl;
     }
 
+    // output information for player
+    printPlayerSequence();
+    printPlayerArmy();
+
     // randomly assign territory to each player in round-robin fashion
     int territoryCount = m->allNodes.size();
     // make a vector of territory index and shuffle them to ensure a randomized result
@@ -318,20 +341,14 @@ void GameEngine::startupPhase()
         pl.at(i)->setTerrPID();
     }
 
-    // phase observer: output information for player
-    printPlayerSequence();
-    printPlayerArmy();
-
-    //Yilu: don't need this method, merge print Territory into notify() in printPlayerArmy()
-    //printPlayerTerritory();
+    // output territories of players
+    printPlayerTerritory();
 }
 
 //Give the number of armiea to players 
 void GameEngine::reinforcementPhase()
 {
     for (int i = 0; i < numOfPlayers; i++) {
-        int originalArmyPool = pl.at(i)->armyPool; //Yilu: original army # 
-
         //Players are given a number of armies that depends on the number of territories they own / 3 
         //each term player will get at lest 3 armies
         if (pl.at(i)->getTerrNumber() / 3 < 3) {
@@ -345,7 +362,6 @@ void GameEngine::reinforcementPhase()
         // loop over all continents in the map
         for (int j = 0; j < m->getNumOfContinents(); ++j)
         {
-            pl.at(i)->currentPhase = 2;
             bool isControlContinent = true;
             Continent* c = m->allContinents.at(j);
             // loop over all territories in this continent
@@ -361,13 +377,7 @@ void GameEngine::reinforcementPhase()
                 pl.at(i)->armyPool += c->getBounusArmyNum();
             }
         }
-
-        //calculate army # that is added to each player
-        int addedArmies = pl.at(i)->armyPool - originalArmyPool; 
-
-        //call PhaseObserver
-        notify("reinforcement", pl.at(i), NULL, to_string(addedArmies));
-        //cout << pl.at(i)->name << " army #: " << pl.at(i)->armyPool << endl;
+        cout << pl.at(i)->name << " army #: " << pl.at(i)->armyPool << endl;
     }
 
 }
@@ -378,25 +388,29 @@ void GameEngine::mainGameLoop()
     int i = 0;
     while (true) {
         i += 1;
-    //set armies calling reinforcementPhase
-    reinforcementPhase();
-    //Players issue orders and place them in their order list 
-    issueOrdersPhase();
-    //the game engine proceeds to execute the top order 
-    //on the list of orders of each player 
-    executeOrdersPhase();
-    // print all territory player owns
-    for (int i = 0; i < numOfPlayers; ++i)
-    {
-        cout << "Player" << pl.at(i)->name << " owns the following territories: " << endl;
-        pl.at(i)->printTerrOwn();
-    }
-    //then back to reinforcementPhase
-    if (gameCheck())
-    {
-        cout << "Player" << pl.at(0)->name << " has won the game!" << endl;
-        break;
-    }
+        //set armies calling reinforcementPhase
+        reinforcementPhase();
+        //Players issue orders and place them in their order list 
+        issueOrdersPhase();
+        //the game engine proceeds to execute the top order 
+        //on the list of orders of each player 
+        executeOrdersPhase();
+
+        // print all territory player owns
+        for (int i = 0; i < numOfPlayers; ++i)
+        {
+            cout << "Player" << pl.at(i)->name << " owns the following territories: " << endl;
+            pl.at(i)->printTerrOwn();
+            cout << *pl.at(i)->cards;
+        }
+
+        //then back to reinforcementPhase
+        if (gameCheck())
+        {
+            cout << "Player" << pl.at(0)->name << " has won the game!" << endl;
+            break;
+        }
+
     }
     cout << "GAME OVER";
 }
