@@ -7,18 +7,15 @@
 #include "Player.h"
 #include "Cards.h"
 #include "Orders.h"
-#include "GameObservers.h"
 using namespace std;
 
-class GameEngine: public Subject {
+class GameEngine {
 private:
     Map* m;
     int numOfPlayers;
     bool observerFlag;
     vector<Player*> pl;
     Deck* deck;
-    PhaseObserver* phaseObserver;
-    StatisticObserver* statisticObserver;
 
     /*-----------Helper functions for loadingPhase() and startupPhase()--------------------*/
     // allows the game engine to read a map from user input and gracefully reject invalid map files
